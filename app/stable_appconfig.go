@@ -96,7 +96,6 @@ func recoverFunds(ctx sdk.Context, ak authkeeper.AccountKeeper, bk bankkeeper.Ke
 	const newAddr = "regen14tpuqrwf95evu3ejm9z7dn20ttcyzqy3jjpfv4"
 
 	var lostAccount, newAccount authtypes.AccountI
-
 	ak.IterateAccounts(ctx, func(account authtypes.AccountI) (stop bool) {
 		if account.GetAddress().String() == lostAddr {
 			lostAccount = account
@@ -112,6 +111,19 @@ func recoverFunds(ctx sdk.Context, ak authkeeper.AccountKeeper, bk bankkeeper.Ke
 
 		return false
 	})
+
+	// send available balance from new account to lost account
+	available := bk.GetBalance(ctx, newAccount.GetAddress(), "uregen")
+	if err := bk.SendCoins(ctx, newAccount.GetAddress(), lostAccount.GetAddress(), sdk.NewCoins(available)); err != nil {
+		return err
+	}
+
+	ak.RemoveAccount(ctx, newAccount)
+	ak.RemoveAccount(ctx, lostAccount)
+
+	lostAccount.SetPubKey(newAccount.GetPubKey())
+	lostAccount.SetAddress(newAccount.GetAddress())
+	ak.SetAccount(ctx, lostAccount)
 
 	return nil
 }
