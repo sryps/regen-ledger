@@ -6,6 +6,8 @@
 package app
 
 import (
+	"fmt"
+
 	"github.com/CosmWasm/wasmd/x/wasm"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	distrclient "github.com/cosmos/cosmos-sdk/x/distribution/client"
@@ -23,6 +25,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -112,18 +115,33 @@ func recoverFunds(ctx sdk.Context, ak authkeeper.AccountKeeper, bk bankkeeper.Ke
 		return false
 	})
 
-	// send available balance from new account to lost account
-	available := bk.GetBalance(ctx, newAccount.GetAddress(), "uregen")
-	if err := bk.SendCoins(ctx, newAccount.GetAddress(), lostAccount.GetAddress(), sdk.NewCoins(available)); err != nil {
+	va, ok := lostAccount.(*vestingtypes.PeriodicVestingAccount)
+	if !ok {
+		return fmt.Errorf("%s is not a vesting account", lostAccount.GetAddress().String())
+	}
+
+	vestingPeriods := va.VestingPeriods
+
+	// immediatly unlock vesting tokens
+	newVestingPeriods := make([]vestingtypes.Period, len(va.VestingPeriods))
+	for i, vp := range va.VestingPeriods {
+		vp.Length = 0
+		newVestingPeriods[i] = vp
+	}
+	va.VestingPeriods = newVestingPeriods
+	ak.SetAccount(ctx, va)
+
+	// send spendable balance from lost account to new account
+	spendable := bk.SpendableCoins(ctx, lostAccount.GetAddress())
+	if err := bk.SendCoins(ctx, lostAccount.GetAddress(), newAccount.GetAddress(), spendable); err != nil {
 		return err
 	}
 
-	ak.RemoveAccount(ctx, newAccount)
-	ak.RemoveAccount(ctx, lostAccount)
-
-	lostAccount.SetPubKey(newAccount.GetPubKey())
-	lostAccount.SetAddress(newAccount.GetAddress())
-	ak.SetAccount(ctx, lostAccount)
+	newPVA := vestingtypes.NewPeriodicVestingAccount(
+		authtypes.NewBaseAccount(newAccount.GetAddress(), newAccount.GetPubKey(), newAccount.GetAccountNumber(), newAccount.GetSequence()),
+		va.OriginalVesting, va.StartTime, vestingPeriods,
+	)
+	ak.SetAccount(ctx, newPVA)
 
 	return nil
 }
