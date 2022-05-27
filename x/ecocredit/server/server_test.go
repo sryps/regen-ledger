@@ -38,6 +38,12 @@ func TestGenesis(t *testing.T) {
 	suite.Run(t, s)
 }
 
+func TestTakeFromBasket(t *testing.T) {
+	ff, ecocreditSubspace, bankKeeper, accountKeeper, distKeeper := setup(t)
+	s := testsuite.NewTakeTestSuite(ff, ecocreditSubspace, bankKeeper, accountKeeper, distKeeper)
+	suite.Run(t, s)
+}
+
 func setup(t *testing.T) (*server.FixtureFactory, paramstypes.Subspace, bankkeeper.BaseKeeper, authkeeper.AccountKeeper, *mocks.MockDistributionKeeper) {
 	ff := server.NewFixtureFactory(t, 8)
 	baseApp := ff.BaseApp()
