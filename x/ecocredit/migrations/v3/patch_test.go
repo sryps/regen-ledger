@@ -43,7 +43,7 @@ func TestMainnetMigrations(t *testing.T) {
 	assert.NilError(t, cms.LoadLatestVersion())
 	ormCtx := ormtable.WrapContextDefault(ormtest.NewMemoryBackend())
 	sdkCtx := sdk.NewContext(cms, tmproto.Header{}, false, log.NewNopLogger()).WithContext(ormCtx)
-	sdkCtx = sdkCtx.WithChainID("regen-1")
+	sdkCtx = sdkCtx.WithChainID("4.0-test")
 
 	paramStore.WithKeyTable(v3.ParamKeyTable())
 	ctypes := []*v3.CreditType{
@@ -79,12 +79,12 @@ func TestMainnetMigrations(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	startDate, endDate, err := v3.ParseBatchDenom("C01-20190101-20191231-003")
+	startDate, endDate, err := v3.ParseBatchDenom("C01-20150101-20151231-003")
 	require.NoError(t, err)
 
 	err = batchInfoTable.Create(sdkCtx, &v3.BatchInfo{
 		ClassId:         "C01",
-		BatchDenom:      "C01-20190101-20191231-003",
+		BatchDenom:      "C01-20150101-20151231-003",
 		Issuer:          "cosmos1v2ncquer9r2ytlkxh2djmmsq3e8we6rj88m0lh",
 		TotalAmount:     "20",
 		Metadata:        []byte("cmVnZW46MTN0b1ZnRjg0a1F3U1gxMURkaERhc1l0TUZVMVliNnFRd1F2dHYxcnZIOHBmNUU4VVR5YWpDWC5yZGY="),
@@ -97,7 +97,7 @@ func TestMainnetMigrations(t *testing.T) {
 
 	err = batchInfoTable.Create(sdkCtx, &v3.BatchInfo{
 		ClassId:         "C01",
-		BatchDenom:      "C01-20190101-20191231-004",
+		BatchDenom:      "C01-20150101-20151231-004",
 		Issuer:          "cosmos1v2ncquer9r2ytlkxh2djmmsq3e8we6rj88m0lh",
 		TotalAmount:     "3525",
 		Metadata:        []byte("cmVnZW46MTN0b1ZnRjg0a1F3U1gxMURkaERhc1l0TUZVMVliNnFRd1F2dHYxcnZIOHBmNUU4VVR5YWpDWC5yZGY="),
@@ -108,6 +108,9 @@ func TestMainnetMigrations(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	startDate1, endDate1, err := v3.ParseBatchDenom("C01-20190101-20191231-001")
+	require.NoError(t, err)
+
 	err = batchInfoTable.Create(sdkCtx, &v3.BatchInfo{
 		ClassId:         "C01",
 		BatchDenom:      "C01-20190101-20191231-001",
@@ -115,8 +118,8 @@ func TestMainnetMigrations(t *testing.T) {
 		TotalAmount:     "61",
 		Metadata:        []byte("cmVnZW46MTN0b1ZnRjg0a1F3U1gxMURkaERhc1l0TUZVMVliNnFRd1F2dHYxcnZIOHBmNUU4VVR5YWpDWC5yZGY="),
 		AmountCancelled: "0",
-		StartDate:       startDate,
-		EndDate:         endDate,
+		StartDate:       startDate1,
+		EndDate:         endDate1,
 		ProjectLocation: "KE",
 	})
 	require.NoError(t, err)
@@ -128,8 +131,8 @@ func TestMainnetMigrations(t *testing.T) {
 		TotalAmount:     "36",
 		Metadata:        []byte("cmVnZW46MTN0b1ZnUjh4TDZOdXlyb3RqYWlrN2JxbWt1V1JuTXZpdDhrYTFmU0JMbmVielA3elVWYk1KMy5yZGY="),
 		AmountCancelled: "0",
-		StartDate:       startDate,
-		EndDate:         endDate,
+		StartDate:       startDate1,
+		EndDate:         endDate1,
 		ProjectLocation: "KE",
 	})
 	require.NoError(t, err)
@@ -175,13 +178,21 @@ func TestMainnetMigrations(t *testing.T) {
 	}
 	itr.Close()
 
+	fmt.Println("0000000000000000000000000000000000000000000000000000000000000000000000000")
+	itr1, err := ss.ProjectTable().List(ctx, api.ProjectPrimaryKey{})
+	for itr1.Next() {
+		x, _ := itr1.Value()
+		fmt.Println(x)
+	}
+	itr1.Close()
+
 	// verify project migration
 	res1, err := ss.ProjectTable().Get(ctx, 1)
 	require.NoError(t, err)
 	require.NotNil(t, res1)
 	require.Equal(t, res1.Id, "C01-001")
 	require.Equal(t, res1.Metadata, "")
-	require.Equal(t, res1.Jurisdiction, "KE")
+	require.Equal(t, res1.Jurisdiction, "CD-MN")
 	require.Equal(t, res1.ClassKey, uint64(1))
 	fmt.Println(res1)
 
@@ -190,13 +201,13 @@ func TestMainnetMigrations(t *testing.T) {
 	require.NotNil(t, res1)
 	require.Equal(t, res1.Id, "C01-002")
 	require.Equal(t, res1.Metadata, "")
-	require.Equal(t, res1.Jurisdiction, "CD-MN")
+	require.Equal(t, res1.Jurisdiction, "KE")
 	require.Equal(t, res1.ClassKey, uint64(1))
 
 	// verify batch migration
 	expbd1, err := core.FormatBatchDenom("C01-001", 1, startDate, endDate)
 	require.NoError(t, err)
-	expbd2, err := core.FormatBatchDenom("C01-002", 1, startDate, endDate)
+	expbd2, err := core.FormatBatchDenom("C01-001", 2, startDate, endDate)
 	require.NoError(t, err)
 
 	batchRes, err := ss.BatchTable().GetByDenom(ctx, expbd1)
@@ -250,18 +261,18 @@ func TestMainnetMigrations(t *testing.T) {
 	// project location -> reference-id
 	// KE    -> "VCS-612" (Kasigao)
 	// CD-MN -> "VCS-934" (Mai Ndombe)
-	assertProjectReferenceId(t, ctx, ss, "C01-001", "KE", "VCS-612")
-	assertProjectReferenceId(t, ctx, ss, "C01-002", "CD-MN", "VCS-934")
+	assertProjectReferenceId(t, ctx, ss, "C01-002", "KE", "VCS-612")
+	assertProjectReferenceId(t, ctx, ss, "C01-001", "CD-MN", "VCS-934")
 
 	// batch issuance dates
 	//  C01-001-20190101-20191231-001  -  "2022-05-06T01:33:13Z"
 	//  C01-001-20190101-20191231-002  -  "2022-05-06T01:33:19Z"
 	//  C01-002-20190101-20191231-001  -  "2022-05-06T01:33:25Z"
 	//  C01-002-20190101-20191231-002  -  "2022-05-06T01:33:31Z"
-	assertBatchIssuanceDate(t, ctx, ss, "C01-001-20190101-20191231-001", "2022-05-06T01:33:13Z")
-	assertBatchIssuanceDate(t, ctx, ss, "C01-001-20190101-20191231-002", "2022-05-06T01:33:19Z")
-	assertBatchIssuanceDate(t, ctx, ss, "C01-002-20190101-20191231-001", "2022-05-06T01:33:25Z")
-	assertBatchIssuanceDate(t, ctx, ss, "C01-002-20190101-20191231-002", "2022-05-06T01:33:31Z")
+	assertBatchIssuanceDate(t, ctx, ss, "C01-001-20150101-20151231-001", "2022-05-06T01:33:25Z")
+	assertBatchIssuanceDate(t, ctx, ss, "C01-001-20150101-20151231-002", "2022-05-06T01:33:31Z")
+	assertBatchIssuanceDate(t, ctx, ss, "C01-002-20190101-20191231-001", "2022-05-06T01:33:13Z")
+	assertBatchIssuanceDate(t, ctx, ss, "C01-002-20190101-20191231-002", "2022-05-06T01:33:19Z")
 }
 
 func TestRedwoodMigrations(t *testing.T) {
@@ -840,6 +851,7 @@ func assertBatchIssuanceDate(t *testing.T, ctx context.Context, ss api.StateStor
 
 func assertProjectReferenceId(t *testing.T, ctx context.Context, ss api.StateStore, id, jurisdiction, referenceID string) {
 	res, err := ss.ProjectTable().GetById(ctx, id)
+	fmt.Println(id)
 	require.NoError(t, err)
 	require.Equal(t, res.ReferenceId, referenceID)
 	require.Equal(t, res.Jurisdiction, jurisdiction)
