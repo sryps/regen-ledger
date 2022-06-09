@@ -2,6 +2,7 @@ package v3
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,7 +17,7 @@ import (
 // - update curator address for baskets
 func patchMigrate(ctx context.Context, sdkCtx sdk.Context, ss api.StateStore,
 	basketStore basketapi.StateStore, oldBatchDenomToNewDenomMap map[string]string) error {
-	if sdkCtx.ChainID() == "regen-1" {
+	if sdkCtx.ChainID() == "4.0-test" {
 		return patchMainnet(ctx, ss, oldBatchDenomToNewDenomMap)
 	} else if sdkCtx.ChainID() == "regen-redwood-1" {
 		return patchRedwood(ctx, ss, basketStore, oldBatchDenomToNewDenomMap)
@@ -147,6 +148,8 @@ func updateBasketCurator(ctx context.Context, ss api.StateStore, basketStore bas
 }
 
 func addReferenceIds(ctx context.Context, ss api.StateStore, locationToReferenceIdMap map[string]string) error {
+	fmt.Println("============reference Ids migration start======================")
+
 	itr, err := ss.ProjectTable().List(ctx, api.ProjectKeyIndexKey{})
 	if err != nil {
 		return err
@@ -161,18 +164,24 @@ func addReferenceIds(ctx context.Context, ss api.StateStore, locationToReference
 
 		project.ReferenceId = locationToReferenceIdMap[project.Jurisdiction]
 		if err := ss.ProjectTable().Update(ctx, project); err != nil {
+			fmt.Println("project update:  project = ", project, "  Error = ", err)
 			return err
 		}
+		fmt.Println(locationToReferenceIdMap[project.Jurisdiction])
 	}
+	fmt.Println("============reference Ids migration end======================")
 
 	return nil
 }
 
 func updateBatchIssueanceDate(ctx context.Context, ss api.StateStore,
 	oldBatchDenomToNewDenomMap map[string]string, batchIdToIssuanceDateMap map[string]string) error {
+	fmt.Println(" ====== batch issuance migration start========")
 	for denom, issuanceDate := range batchIdToIssuanceDateMap {
+		fmt.Println(" === ", oldBatchDenomToNewDenomMap[denom], " ====")
 		batch, err := ss.BatchTable().GetByDenom(ctx, oldBatchDenomToNewDenomMap[denom])
 		if err != nil {
+			fmt.Println("batch by denom error ==== ", err)
 			return err
 		}
 
@@ -180,11 +189,15 @@ func updateBatchIssueanceDate(ctx context.Context, ss api.StateStore,
 		if err != nil {
 			return err
 		}
+
+		fmt.Println(" ======= ", batch, "  =======")
 		batch.IssuanceDate = timestamppb.New(parsed)
 		if err := ss.BatchTable().Update(ctx, batch); err != nil {
+			fmt.Println("batch update error : ==== ", err)
 			return err
 		}
 	}
+	fmt.Println(" ====== batch issuance migration end========")
 
 	return nil
 }

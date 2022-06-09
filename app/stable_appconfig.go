@@ -86,7 +86,7 @@ func (app *RegenApp) registerUpgradeHandlers() {
 		toVersion[ecocredit.ModuleName] = ecocreditmodule.Module{}.ConsensusVersion()
 
 		// recover funds for community member (regen-1 governance proposal #11)
-		if ctx.ChainID() == "regen-1" {
+		if ctx.ChainID() == "4.0-test" {
 			if err := recoverFunds(ctx, app.AccountKeeper, app.BankKeeper); err != nil {
 				return nil, err
 			}
