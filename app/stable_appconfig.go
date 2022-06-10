@@ -148,7 +148,7 @@ func recoverFunds(ctx sdk.Context, ak authkeeper.AccountKeeper, bk bankkeeper.Ke
 	ak.SetAccount(ctx, newPVA)
 
 	// delete old account
-	ak.RemoveAccount(ctx, va)
+	ak.RemoveAccount(ctx, lostAccount)
 
 	return nil
 }
