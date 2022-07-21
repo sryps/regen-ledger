@@ -39,6 +39,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
+	budgetcli "github.com/tendermint/budget/x/budget/client/cli"
+
 	"github.com/regen-network/regen-ledger/v4/app"
 )
 
@@ -188,6 +190,7 @@ func queryCommand() *cobra.Command {
 		rpc.BlockCommand(),
 		authcmd.QueryTxsByEventsCmd(),
 		authcmd.QueryTxCmd(),
+		budgetcli.GetQueryCmd(),
 	)
 
 	app.ModuleBasics.AddQueryCommands(cmd)

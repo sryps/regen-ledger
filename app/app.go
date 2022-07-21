@@ -100,6 +100,10 @@ import (
 	ecocreditmodule "github.com/regen-network/regen-ledger/x/ecocredit/module"
 	ecoServer "github.com/regen-network/regen-ledger/x/ecocredit/server"
 
+	"github.com/tendermint/budget/x/budget"
+	budgetkeeper "github.com/tendermint/budget/x/budget/keeper"
+	budgettypes "github.com/tendermint/budget/x/budget/types"
+
 	// unnamed import of statik for swagger UI support
 	_ "github.com/regen-network/regen-ledger/v4/client/docs/statik"
 )
@@ -139,6 +143,7 @@ var (
 			authzmodule.AppModuleBasic{},
 			ecocreditmodule.Module{},
 			data.Module{},
+			budget.AppModuleBasic{},
 		}, setCustomModuleBasics()...)...,
 	)
 
@@ -154,6 +159,7 @@ var (
 			ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 			ecocredit.ModuleName:           {authtypes.Burner},
 			basket.BasketSubModuleName:     {authtypes.Burner, authtypes.Minter},
+			budgettypes.ModuleName:         nil,
 		}
 
 		for k, v := range setCustomMaccPerms() {
@@ -204,6 +210,7 @@ type RegenApp struct {
 	TransferKeeper   ibctransferkeeper.Keeper
 	FeeGrantKeeper   feegrantkeeper.Keeper
 	AuthzKeeper      authzkeeper.Keeper
+	BudgetKeeper     budgetkeeper.Keeper
 
 	// nolint
 	wasmKeeper wasm.Keeper
@@ -259,7 +266,7 @@ func NewRegenApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest 
 			minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 			govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey,
 			evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey, feegrant.StoreKey,
-			authzkeeper.StoreKey,
+			authzkeeper.StoreKey, budgettypes.StoreKey,
 		}, setCustomKVStoreKeys()...)...,
 	)
 
@@ -332,6 +339,11 @@ func NewRegenApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest 
 	// Create IBC Keeper
 	app.IBCKeeper = ibckeeper.NewKeeper(
 		appCodec, keys[ibchost.StoreKey], app.GetSubspace(ibchost.ModuleName), app.StakingKeeper, app.UpgradeKeeper, scopedIBCKeeper,
+	)
+
+	app.BudgetKeeper = budgetkeeper.NewKeeper(
+		appCodec, keys[budgettypes.StoreKey], app.GetSubspace(budgettypes.ModuleName), app.AccountKeeper,
+		app.BankKeeper, app.ModuleAccountAddrs(),
 	)
 
 	// register the proposal types
@@ -442,6 +454,7 @@ func NewRegenApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest 
 			upgradetypes.ModuleName,
 			capabilitytypes.ModuleName,
 			minttypes.ModuleName,
+			budgettypes.ModuleName,
 			distrtypes.ModuleName,
 			slashingtypes.ModuleName,
 			evidencetypes.ModuleName,
@@ -542,6 +555,7 @@ func NewRegenApp(logger log.Logger, db dbm.DB, traceStore io.Writer, loadLatest 
 			transferModule,
 			ecocreditmodule.NewModule(app.GetSubspace(ecocredit.DefaultParamspace), app.AccountKeeper, app.BankKeeper),
 			data.NewModule(app.AccountKeeper, app.BankKeeper),
+			budget.NewAppModule(appCodec, app.BudgetKeeper, app.AccountKeeper, app.BankKeeper),
 		}, app.setCustomSimulationManager()...)...,
 	)
 
@@ -750,6 +764,7 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(banktypes.ModuleName)
 	paramsKeeper.Subspace(stakingtypes.ModuleName)
 	paramsKeeper.Subspace(minttypes.ModuleName)
+	paramsKeeper.Subspace(budgettypes.ModuleName)
 	paramsKeeper.Subspace(distrtypes.ModuleName)
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
 	paramsKeeper.Subspace(govtypes.ModuleName).WithKeyTable(govtypes.ParamKeyTable())
